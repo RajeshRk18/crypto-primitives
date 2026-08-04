@@ -19,11 +19,13 @@ use num_traits::{
     ConstZero, Num, One, Pow, Signed, WrappingAdd, WrappingMul, WrappingSub, Zero,
 };
 use pastey::paste;
-
 #[cfg(feature = "rand")]
 use rand::{distr::StandardUniform, prelude::*, rand_core::TryRng};
+#[cfg(feature = "zerocopy")]
+use zerocopy_derive::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "zerocopy", derive(KnownLayout))]
 #[repr(transparent)]
 pub struct Int<const LIMBS: usize>(pub crypto_bigint::Int<LIMBS>);
 
@@ -1594,5 +1596,11 @@ mod tests {
         let any = Int1::from(12345_i64);
         let zero_result: Int2 = zero.concatenating_mul(&any);
         assert_eq!(zero_result, Int2::ZERO);
+    }
+
+    #[test]
+    #[cfg(feature = "zerocopy")]
+    fn zerocopy() {
+        ensure_type_implements_trait!(Int4, zerocopy::KnownLayout);
     }
 }

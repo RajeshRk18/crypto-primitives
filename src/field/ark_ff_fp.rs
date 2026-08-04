@@ -1,5 +1,5 @@
 use super::*;
-use crate::{IntSemiring, LiftElement, Wrapper, boolean::Boolean};
+use crate::{IntSemiring, LiftElement, Wrapper, ark_ff_bigint::BigInt, boolean::Boolean};
 use ark_ff::{
     AdditiveGroup, BigInteger, FftField, FpConfig, LegendreSymbol, MontBackend, MontConfig,
     SqrtPrecomputation,
@@ -9,6 +9,8 @@ use ark_serialize::{
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
     CanonicalSerializeWithFlags, Compress, Flags, Read, SerializationError, Valid, Validate, Write,
 };
+#[cfg(feature = "rand")]
+use ark_std::{UniformRand, rand::prelude::*};
 use core::{
     cmp::Ordering,
     fmt::{Display, Formatter, Result as FmtResult},
@@ -22,17 +24,19 @@ use num_traits::{
     Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedSub, ConstOne, ConstZero, One,
     Pow, Zero,
 };
-
-use crate::ark_ff_bigint::BigInt;
-#[cfg(feature = "rand")]
-use ark_std::{UniformRand, rand::prelude::*};
 #[cfg(feature = "rand")]
 use rand::distr::StandardUniform;
+#[cfg(feature = "zerocopy")]
+use zerocopy_derive::*;
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
 
 // Can't derive core traits because of the generic parameters
 #[derive(InfallibleCheckedOp)]
 #[infallible_checked_unary_op((CheckedNeg, neg))]
 #[infallible_checked_binary_op((CheckedAdd, add), (CheckedSub, sub), (CheckedMul, mul))]
+#[cfg_attr(feature = "zerocopy", derive(KnownLayout))]
+#[cfg_attr(feature = "zeroize", derive(Zeroize))]
 #[repr(transparent)]
 pub struct Fp<P: FpConfig<N>, const N: usize>(pub ArkWrappedFp<P, N>);
 
@@ -578,17 +582,6 @@ impl<P: FpConfig<N>, const N: usize> Distribution<Fp<P, N>> for StandardUniform 
 impl<P: FpConfig<N>, const N: usize> UniformRand for Fp<P, N> {
     fn rand<R: ark_std::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         Self(ArkWrappedFp::rand(rng))
-    }
-}
-
-//
-// Zeroize
-//
-
-#[cfg(feature = "zeroize")]
-impl<P: FpConfig<N>, const N: usize> zeroize::Zeroize for Fp<P, N> {
-    fn zeroize(&mut self) {
-        self.0.zeroize()
     }
 }
 
@@ -1378,5 +1371,11 @@ mod tests {
         // Test that we can access inner methods via Deref
         let _ = a.is_zero();
         let _ = a.inverse();
+    }
+
+    #[test]
+    #[cfg(feature = "zerocopy")]
+    fn zerocopy() {
+        ensure_type_implements_trait!(F, zerocopy::KnownLayout);
     }
 }

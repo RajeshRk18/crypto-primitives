@@ -20,11 +20,16 @@ use num_traits::{
     WrappingSub, Zero,
 };
 use pastey::paste;
-
 #[cfg(feature = "rand")]
 use rand::rand_core::TryRng;
+#[cfg(feature = "zerocopy")]
+use zerocopy_derive::*;
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
 
 #[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "zerocopy", derive(KnownLayout))]
+#[cfg_attr(feature = "zeroize", derive(Zeroize))]
 #[repr(transparent)]
 pub struct BoxedUint(pub crypto_bigint::BoxedUint);
 
@@ -750,17 +755,6 @@ impl serde::Serialize for BoxedUint {
 }
 
 //
-// Zeroize
-//
-
-#[cfg(feature = "zeroize")]
-impl zeroize::Zeroize for BoxedUint {
-    fn zeroize(&mut self) {
-        self.0.zeroize()
-    }
-}
-
-//
 // Traits from crypto_bigint
 //
 
@@ -1383,5 +1377,11 @@ mod tests {
         assert_eq!(a.wrapping_add(&b), BoxedUint::from(15_u64));
         assert_eq!(a.wrapping_sub(&b), BoxedUint::from(5_u64));
         assert_eq!(a.wrapping_mul(&b), BoxedUint::from(50_u64));
+    }
+
+    #[test]
+    #[cfg(feature = "zerocopy")]
+    fn zerocopy() {
+        ensure_type_implements_trait!(BoxedUint, zerocopy::KnownLayout);
     }
 }

@@ -20,13 +20,18 @@ use num_traits::{
     CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedSub, ConstOne, ConstZero, One, Pow, Zero,
 };
 use pastey::paste;
-
 #[cfg(feature = "rand")]
 use rand::{distr::StandardUniform, prelude::*, rand_core::TryRng};
+#[cfg(feature = "zerocopy")]
+use zerocopy_derive::*;
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
 
 #[derive(Clone, Copy, PartialEq, Eq, InfallibleCheckedOp)]
 #[infallible_checked_unary_op((CheckedNeg, neg))]
 #[infallible_checked_binary_op((CheckedAdd, add), (CheckedSub, sub), (CheckedMul, mul))]
+#[cfg_attr(feature = "zerocopy", derive(KnownLayout))]
+#[cfg_attr(feature = "zeroize", derive(Zeroize))]
 #[repr(transparent)]
 pub struct ConstMontyField<Mod: Params<LIMBS>, const LIMBS: usize>(pub ConstMontyForm<Mod, LIMBS>);
 
@@ -686,17 +691,6 @@ where
         S: serde::Serializer,
     {
         self.0.serialize(serializer)
-    }
-}
-
-//
-// Zeroize
-//
-
-#[cfg(feature = "zeroize")]
-impl<Mod: Params<LIMBS>, const LIMBS: usize> zeroize::Zeroize for ConstMontyField<Mod, LIMBS> {
-    fn zeroize(&mut self) {
-        self.0.zeroize()
     }
 }
 
@@ -1453,6 +1447,12 @@ mod tests {
 
         assert_ne!(random3, random4);
     }
+
+    #[test]
+    #[cfg(feature = "zerocopy")]
+    fn zerocopy() {
+        ensure_type_implements_trait!(F, zerocopy::KnownLayout);
+    }
 }
 
 #[cfg(test)]
@@ -1462,11 +1462,10 @@ mod tests {
     clippy::cast_possible_wrap
 )]
 mod prop_tests {
+    use super::*;
     use crypto_bigint::{U256, const_monty_params};
     use num_traits::{One, Zero};
     use proptest::prelude::*;
-
-    use super::*;
 
     const_monty_params!(
         ModP,

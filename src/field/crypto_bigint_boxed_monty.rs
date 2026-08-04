@@ -14,6 +14,10 @@ use crypto_bigint::{
     modular::{BoxedMontyForm, BoxedMontyParams},
 };
 use num_traits::{One, Signed};
+#[cfg(feature = "zerocopy")]
+use zerocopy_derive::*;
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BoxedMontyField {
@@ -60,6 +64,8 @@ impl BoxedMontyField {
 /// A wrapper around [`BoxedUint`] to prevent accidentally calling math
 /// operations on it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "zerocopy", derive(KnownLayout))]
+#[cfg_attr(feature = "zeroize", derive(Zeroize))]
 #[repr(transparent)]
 pub struct BoxedMontyFieldElement(pub BoxedUint);
 
@@ -462,17 +468,6 @@ impl serde::Serialize for BoxedMontyFieldElement {
         S: serde::Serializer,
     {
         self.0.serialize(serializer)
-    }
-}
-
-//
-// Zeroize
-//
-
-#[cfg(feature = "zeroize")]
-impl zeroize::Zeroize for BoxedMontyFieldElement {
-    fn zeroize(&mut self) {
-        self.0.zeroize()
     }
 }
 
@@ -1047,5 +1042,11 @@ mod tests {
         let even_modulus = BoxedUint::from(42_u64);
         let result = F::new(&even_modulus);
         assert!(result.is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "zerocopy")]
+    fn zerocopy() {
+        ensure_type_implements_trait!(<F as SetConfig>::Element, zerocopy::KnownLayout);
     }
 }

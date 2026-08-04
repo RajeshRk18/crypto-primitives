@@ -12,6 +12,10 @@ use crypto_bigint::{
     modular::{FixedMontyForm, FixedMontyParams},
 };
 use num_traits::Signed;
+#[cfg(feature = "zerocopy")]
+use zerocopy_derive::*;
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MontyField<const LIMBS: usize> {
@@ -54,6 +58,8 @@ impl<const LIMBS: usize> MontyField<LIMBS> {
 /// A wrapper around [`Uint`] to prevent accidentally calling math operations
 /// on it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "zerocopy", derive(KnownLayout))]
+#[cfg_attr(feature = "zeroize", derive(Zeroize))]
 #[repr(transparent)]
 pub struct MontyFieldElement<const LIMBS: usize>(pub Uint<LIMBS>);
 
@@ -411,17 +417,6 @@ where
         S: serde::Serializer,
     {
         self.0.serialize(serializer)
-    }
-}
-
-//
-// Zeroize
-//
-
-#[cfg(feature = "zeroize")]
-impl<const LIMBS: usize> zeroize::Zeroize for MontyFieldElement<LIMBS> {
-    fn zeroize(&mut self) {
-        self.0.zeroize()
     }
 }
 
@@ -1052,5 +1047,11 @@ mod tests {
         let even_modulus = Uint::<LIMBS>::from(42_u64);
         let result = F::new(&even_modulus);
         assert!(result.is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "zerocopy")]
+    fn zerocopy() {
+        ensure_type_implements_trait!(<F as SetConfig>::Element, zerocopy::KnownLayout);
     }
 }

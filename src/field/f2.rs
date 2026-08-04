@@ -13,9 +13,10 @@ use num_traits::{
     Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedSub, ConstOne, ConstZero, Inv,
     One, Pow, Zero,
 };
-
 #[cfg(feature = "rand")]
 use rand::{distr::StandardUniform, prelude::*};
+#[cfg(feature = "zerocopy")]
+use zerocopy_derive::*;
 
 /// The field with two elements, GF(2). Elements are {0, 1} represented as
 /// {false, true}. Arithmetic is modulo 2: addition and subtraction are XOR,
@@ -23,6 +24,10 @@ use rand::{distr::StandardUniform, prelude::*};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, InfallibleCheckedOp)]
 #[infallible_checked_unary_op((CheckedNeg, neg))]
 #[infallible_checked_binary_op((CheckedAdd, add), (CheckedSub, sub), (CheckedMul, mul))]
+#[cfg_attr(
+    feature = "zerocopy",
+    derive(KnownLayout, Immutable, TryFromBytes, IntoBytes)
+)]
 #[repr(transparent)]
 pub struct F2(pub bool);
 
@@ -863,5 +868,20 @@ mod tests {
         let mut x = V0;
         *Wrapper::inner_mut(&mut x) = true;
         assert_eq!(x, V1);
+    }
+
+    #[test]
+    #[cfg(feature = "zerocopy")]
+    fn zerocopy() {
+        use zerocopy::*;
+
+        ensure_type_implements_trait!(F2, KnownLayout);
+
+        assert_eq!(F2::try_read_from_bytes(&[0x00]).unwrap(), V0);
+        assert_eq!(F2::try_read_from_bytes(&[0x01]).unwrap(), V1);
+        assert!(F2::try_read_from_bytes(&[0x02]).is_err());
+
+        assert_eq!(V0.as_bytes(), &[0x00]);
+        assert_eq!(V1.as_bytes(), &[0x01]);
     }
 }

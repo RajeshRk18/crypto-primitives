@@ -20,8 +20,11 @@ use num_traits::{
 };
 #[cfg(feature = "rand")]
 use rand::{distr::StandardUniform, prelude::*};
+#[cfg(feature = "zerocopy")]
+use zerocopy_derive::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "zerocopy", derive(KnownLayout))]
 #[repr(transparent)]
 pub struct BigInt<const N: usize>(pub ArkBigInt<N>);
 
@@ -1123,5 +1126,11 @@ mod tests {
         let random1: BigInt4 = ark_rng.r#gen();
         let random2: BigInt4 = ark_rng.r#gen();
         assert_ne!(random1, random2);
+    }
+
+    #[test]
+    #[cfg(feature = "zerocopy")]
+    fn zerocopy() {
+        ensure_type_implements_trait!(BigInt4, zerocopy::KnownLayout);
     }
 }
